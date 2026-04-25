@@ -7,6 +7,8 @@ use App\Models\User;
 use App\Models\Todo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Requests\StoreProductRequest;
+use Illuminate\Support\Facades\Log;
 
 class ProductController extends Controller
 {
@@ -35,18 +37,39 @@ class ProductController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StoreProductRequest $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'quantity' => 'required|integer|min:0',
-            'price' => 'required|numeric|min:0',
-            'user_id' => 'required|exists:users,id',
-        ]);
+        $validated = $request->validated();
+        
+        $validated['user_id'] = Auth::id();
 
-        Product::create($validated);
+        try {
+            Product::create($validated);
 
-        return redirect()->route('product.index')->with('success', 'Product created successfully.');
+            return redirect()
+                ->route('product.index')
+                ->with('success', 'Product created successfully.');
+
+        } catch (QueryException $e) {
+            Log::error('Product store database error', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'Database error while creating product.');
+
+        } catch (\Throwable $e) {
+            Log::error('Product store unexpected error', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'Unexpected error occurred.');
+        }
     }
 
     /**
@@ -70,16 +93,15 @@ class ProductController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
+    public function update(StoreProductRequest $request, $id)
     {
         $product = Product::findOrFail($id);
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'quantity' => 'required|integer|min:0',
-            'price' => 'required|numeric|min:0',
-            'user_id' => 'required|exists:users,id',
-        ]);
+        $validated = $request->validated();
+        
+        if (!isset($validated['user_id'])) {
+            $validated['user_id'] = Auth::id();
+        }
 
         $product->update($validated);
 
