@@ -30,4 +30,4 @@ Route::middleware('auth')->group(function () {
     Route::get('/todo', [ProductController::class, 'index'])->name('todo.index');
 });
 
-require __DIR__.'/auth.php';
+//require __DIR__.'/auth.php';
